@@ -1,0 +1,8 @@
+{
+  "repository": "dahahn1980/fsg-datenblatt-system",
+  "commit": "e572018baa039154b2eebaff21cd0f111a5fa93f",
+  "path": "renderer/engine",
+  "mode": "git-submodule",
+  "mutable": false,
+  "reason": "Freigegebene V1-PDF-Engine unverändert in V2 verwenden"
+}
