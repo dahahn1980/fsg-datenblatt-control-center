@@ -1,0 +1,4 @@
+[submodule "renderer/engine"]
+	path = renderer/engine
+	url = https://github.com/dahahn1980/fsg-datenblatt-system.git
+	branch = archive/approved-cable-extension-v1-11-2026-07-20

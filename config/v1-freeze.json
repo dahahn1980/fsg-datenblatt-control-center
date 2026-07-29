@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "status": "production-frozen",
+  "sourceRepository": "dahahn1980/fsg-datenblatt-system",
+  "sourceCommit": "e572018baa039154b2eebaff21cd0f111a5fa93f",
+  "documentedMainCommit": "c1e6a758e516ab23d045702a8e9e4be580f9d0b0",
+  "archiveBranch": "archive/approved-cable-extension-v1-11-2026-07-20",
+  "templates": {
+    "neigungssensoren": "inclination-v1.7",
+    "fusspedale": "foot-pedal-v1.6",
+    "potentiometer": "potentiometer-v1.1",
+    "seilzugsensoren": "cable-extension-v1.11"
+  },
+  "rules": [
+    "V1 receives bug fixes only",
+    "Product content is read exclusively from Wix CMS",
+    "V2 must not silently alter frozen template output",
+    "Renderer changes require regression comparison against all four references"
+  ]
+}

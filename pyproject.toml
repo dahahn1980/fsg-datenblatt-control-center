@@ -1,0 +1,9 @@
+[project]
+name = "fsg-datenblatt-control-center"
+version = "2.0.0a1"
+description = "Transparente Steuerung der FSG-Datenblattprozesse"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

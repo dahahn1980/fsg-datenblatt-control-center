@@ -1,0 +1,32 @@
+name: Verify V2 architecture
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pytest
+      - run: pytest -q
+      - name: Verify frozen engine lock
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          freeze = json.loads(Path('config/v1-freeze.json').read_text())
+          engine = json.loads(Path('config/renderer-engine.lock.json').read_text())
+          expected = 'e572018baa039154b2eebaff21cd0f111a5fa93f'
+          assert freeze['sourceCommit'] == expected
+          assert engine['commit'] == expected
+          assert engine['mutable'] is False
+          print('V1 freeze and renderer lock verified')
+          PY
