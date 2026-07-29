@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FSG Datenblatt Control Center</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">FSG DATENBLATT-SYSTEM · VERSION 2</p>
+      <h1>Control Center</h1>
+      <p class="subtitle">Produkte prüfen, gezielt auswählen und kontrollierte Render-Aufträge erzeugen.</p>
+    </div>
+    <div class="safety">V1 geschützt · keine direkte Wix-Veröffentlichung</div>
+  </header>
+
+  <main>
+    <section class="stats" id="stats"></section>
+
+    <section class="toolbar">
+      <label class="search"><span>Suche</span><input id="search" type="search" placeholder="Produktname oder Product Key"></label>
+      <label><span>Produktgruppe</span><select id="groupFilter"><option value="">Alle</option></select></label>
+      <label><span>Status</span><select id="statusFilter"><option value="">Alle</option></select></label>
+      <label class="toggle"><input id="changedOnly" type="checkbox"><span>Nur Änderungen</span></label>
+      <label class="fileButton">Report laden<input id="reportFile" type="file" accept="application/json,.json"></label>
+    </section>
+
+    <section class="selectionbar">
+      <div><strong id="selectionCount">0</strong> Produkte ausgewählt</div>
+      <div class="buttons">
+        <button id="selectVisible">Sichtbare auswählen</button>
+        <button id="clearSelection">Auswahl aufheben</button>
+        <button id="createPlan" class="primary" disabled>Render-Auftrag erzeugen</button>
+      </div>
+    </section>
+
+    <section class="tableCard">
+      <table>
+        <thead><tr><th><input id="selectAll" type="checkbox" aria-label="Alle sichtbaren auswählen"></th><th>Produkt</th><th>Produktgruppe</th><th>Status</th><th>Änderung</th><th>Prüfung</th><th>Vorlage</th><th></th></tr></thead>
+        <tbody id="productRows"></tbody>
+      </table>
+      <div id="emptyState" class="empty" hidden>Keine Produkte entsprechen den Filtern.</div>
+    </section>
+  </main>
+
+  <dialog id="detailDialog">
+    <button class="dialogClose" id="closeDialog" aria-label="Schließen">×</button>
+    <div id="detailContent"></div>
+  </dialog>
+
+  <dialog id="planDialog">
+    <button class="dialogClose" id="closePlan" aria-label="Schließen">×</button>
+    <h2>Render-Auftrag vorbereitet</h2>
+    <p>Der Auftrag löst noch keine Veröffentlichung aus. Er kann geprüft und als JSON an den GitHub-Workflow übergeben werden.</p>
+    <pre id="planPreview"></pre>
+    <div class="dialogActions"><button id="downloadPlan" class="primary">Render-Auftrag herunterladen</button></div>
+  </dialog>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
