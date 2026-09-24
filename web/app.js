@@ -4,17 +4,32 @@ const labels={nicht_geprueft:'Nicht geprüft',geprueft:'Geprüft',freigegeben:'�
 const actionLabels={bericht:'Bericht',vorschau:'Vorschau',rendern:'Rendern',upload_wix:'Upload Wix'};
 const storageKey='fsg-control-center-imports-v1';
 let products=[];
+let baseline=[];
+let snapshotAt='';
+let sourceRun='';
 let importedAt='';
 const $=id=>document.getElementById(id);
 const identity=p=>`${p.productGroup}:${p.productKey}`;
 const filters={search:$('search'),group:$('groupFilter'),status:$('statusFilter'),changed:$('changedOnly')};
 
 async function loadInitial(){
+  const response=await fetch('data/snapshot.json?at='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw new Error('Der aktuelle Prüfstand konnte nicht geladen werden.');
+  const snapshot=await response.json();
+  if(!Array.isArray(snapshot.products))throw new Error('Der Prüfstand enthält keine Produktliste.');
+  baseline=snapshot.products;
+  snapshotAt=snapshot.generatedAt||'';
+  sourceRun=snapshot.sourceRun||'';
+  importedAt='';
+  products=baseline;
   try {
     const saved=JSON.parse(localStorage.getItem(storageKey)||'null');
-    if(saved&&Array.isArray(saved.products)&&saved.products.length){products=saved.products;importedAt=saved.importedAt||'';}
+    // A newer central snapshot takes precedence over old browser imports.
+    if(saved&&Array.isArray(saved.products)&&Date.parse(saved.importedAt)>Date.parse(snapshotAt)){
+      products=mergeProducts(baseline,saved.products);
+      importedAt=saved.importedAt;
+    }
   } catch { /* Private browsing may block local storage. */ }
-  if(!products.length)products=await fetch('data/products.json').then(r=>r.json());
   hydrate();render();
 }
 function hydrate(){products=products.map(p=>({...p,selected:Boolean(p.selected),errors:Array.isArray(p.errors)?p.errors:[]}));fillSelect(filters.group,[...new Set(products.map(p=>p.productGroup))]);fillSelect(filters.status,[...new Set(products.map(p=>p.status))],v=>labels[v]||v);}
@@ -33,9 +48,9 @@ function updateSummary(rows){
   $('selectAll').checked=rows.length>0&&rows.filter(p=>!p.errors.length).every(p=>p.selected);
   const count=s=>products.filter(p=>p.status===s).length;
   $('stats').innerHTML=stat(products.length,'Produkte')+stat(products.filter(p=>p.changed).length,'Geändert')+stat(count('fehler'),'Fehler')+stat(selection.length,'Ausgewählt');
-  $('sourceInfo').textContent=importedAt
-    ?`Lokal gespeicherte Berichte · zuletzt hinzugefügt: ${new Date(importedAt).toLocaleString('de-DE')}. Kein automatischer Wix-Abgleich; neuere Berichte hier erneut laden.`
-    :'Beispielstand aus dem Repository (nur Neigungssensoren). Kein automatischer Wix-Abgleich. Lade aktuelle dry-run.json oder publish.json aus einem GitHub-Actions-Lauf; die erste Datei ersetzt diesen Beispielstand.';
+  const date=snapshotAt?new Date(snapshotAt).toLocaleString('de-DE'):'unbekannt';
+  const link=sourceRun?` · GitHub-Lauf ${sourceRun}`:'';
+  $('sourceInfo').textContent=`Zentraler Wix-Prüfstand vom ${date}${link}. ${importedAt?'Lokale Berichte ergänzt am '+new Date(importedAt).toLocaleString('de-DE')+'. ':''}Für neuere Wix-Daten einen Prüfbericht hinzufügen oder den zentralen Prüfstand aktualisieren.`;
   $('resetReports').hidden=!importedAt;
 }
 function stat(n,t){return `<div class="stat"><strong>${n}</strong><span>${t}</span></div>`;}
@@ -45,7 +60,7 @@ function prepareAction(action){const selection=selected();if(!selection.length||
 async function copyKeys(){await navigator.clipboard.writeText($('productKeys').value);$('copyKeys').textContent='Kopiert';setTimeout(()=>$('copyKeys').textContent='Product Keys kopieren',1200);}
 async function importReports(files){
   try {
-    let merged=importedAt?products:[];
+    let merged=products;
     for(const file of files){
       const data=JSON.parse(await file.text());
       merged=mergeProducts(merged,normalizeReport(data));
@@ -66,5 +81,5 @@ $('copyKeys').onclick=copyKeys;
 $('closeDialog').onclick=()=>$('detailDialog').close();
 $('closePlan').onclick=()=>$('planDialog').close();
 $('reportFile').onchange=e=>{if(e.target.files.length)importReports([...e.target.files]);e.target.value='';};
-$('resetReports').onclick=async()=>{if(!confirm('Lokal gespeicherte Berichte löschen und den Beispielstand anzeigen?'))return;localStorage.removeItem(storageKey);importedAt='';products=await fetch('data/products.json').then(r=>r.json());hydrate();render();};
+$('resetReports').onclick=()=>{if(!confirm('Lokal hinzugefügte Berichte löschen und den zentralen Prüfstand anzeigen?'))return;localStorage.removeItem(storageKey);importedAt='';products=baseline;hydrate();render();};
 loadInitial();
