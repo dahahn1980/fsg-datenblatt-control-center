@@ -28,18 +28,37 @@ Die Oberfläche liegt vollständig statisch unter `web/`:
 python -m http.server 8000 --directory web
 ```
 
-Danach `http://localhost:8000` öffnen. Ein aktueller Dry-Run-Report kann über **Report laden** direkt im Browser eingelesen werden. Die Datei wird nur lokal verarbeitet und nicht hochgeladen.
+Danach `http://localhost:8000` öffnen. Die GitHub-Pages-Seite liegt unter
+`https://dahahn1980.github.io/fsg-datenblatt-control-center/`.
+
+Die Seite hat **keinen automatischen Wix-Abgleich**. Ohne eigene Importe zeigt sie
+lediglich die eingecheckten Beispielprodukte in `web/data/products.json` (derzeit
+Neigungssensoren). Ein neuer GitHub-Actions-Lauf aktualisiert diese Datei nicht.
 
 ## Bedienablauf
 
-1. Report laden oder vorhandene Startdaten verwenden.
-2. Nach Produktgruppe, Status, Änderung oder Produktname filtern.
-3. Gewünschte Produkte per Checkbox auswählen.
-4. Fehlerhafte Produkte werden automatisch von Sammelauswahlen ausgeschlossen.
-5. **Render-Auftrag erzeugen** öffnet eine vollständige Vorschau des Auftrags.
-6. Auftrag als JSON herunterladen und anschließend kontrolliert an den GitHub-Workflow übergeben.
+1. Im Repository `fsg-datenblatt-system` unter **Actions → FSG Datenblatt-Auswahl**
+   den gewünschten Prüf- oder Vorschau-Lauf starten.
+2. Im Lauf unter **Artifacts** das Ergebnis herunterladen und daraus
+   `reports/dry-run.json` (bzw. nach einer Veröffentlichung `reports/publish.json`)
+   entpacken.
+3. In der Kontrollzentrale **Berichte hinzufügen** wählen; mehrere JSON-Dateien
+   dürfen zugleich ausgewählt werden. Der erste Import entfernt die alten
+   Beispielprodukte, weitere Importe ergänzen andere Produktgruppen. Ein neuer
+   Bericht für denselben Product Key ersetzt dessen älteren Stand.
+4. Der zusammengeführte Stand bleibt **nur in diesem Browser auf diesem Gerät**
+   gespeichert. Für aktuelle Wix-Daten muss ein neuer Actions-Bericht geladen
+   werden; **Importe löschen** stellt den Beispielstand wieder her.
+5. Nach Produktgruppe, Status, Änderung oder Produktname filtern und bis zu 20
+   Produkte **einer** Produktgruppe per Checkbox auswählen. Fehlerhafte
+   Produkte können nicht ausgewählt werden.
+6. Aktion auswählen, **Product Keys kopieren**, verlinkten GitHub-Workflow öffnen,
+   gleiche Aktion und Produktgruppe einstellen und die Keys in `product_keys`
+   einfügen. Die Kontrollzentrale startet keinen Wix-Upload selbst.
 
-Der erzeugte Auftrag enthält Produktnamen, Product Keys, Vorlagenversionen und Source Hashes. Die Batchgröße ist auf maximal 20 Produkte begrenzt.
+Die Startliste ist eine Demonstration, kein aktueller Produktionsstatus. Ein
+hochgeladener Bericht verlässt den Browser nicht und aktualisiert auch nicht die
+GitHub-Pages-Seite für andere Personen oder Geräte.
 
 ## Architektur
 
@@ -65,6 +84,7 @@ tests/                   Sicherheits- und Architekturtests
 - Produktliste mit Checkboxen und Statusanzeige umgesetzt
 - Suche, Filter und Detailansicht umgesetzt
 - Import vorhandener Dry-Run-Reports umgesetzt
-- kontrollierter Render-Plan als JSON umgesetzt
+- Übergabe der kopierten Product Keys an den bestehenden Auswahlworkflow umgesetzt
+- mehrere Berichte, einschließlich Drehgeber, lokal zusammenführbar
 - fehlerhafte Produkte und leere Auswahlen technisch blockiert
 - direkte Wix-Veröffentlichung weiterhin deaktiviert
