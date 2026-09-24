@@ -1,24 +1,61 @@
-const labels={nicht_geprueft:'Nicht geprüft',geprueft:'Geprüft',freigegeben:'Bereit zum Rendern',vorschau_erstellt:'Vorschau erstellt',veroeffentlicht:'Veröffentlicht',fehler:'Fehler'};
+import {mergeProducts, normalizeReport} from './report-data.mjs';
+
+const labels={nicht_geprueft:'Nicht geprüft',geprueft:'Geprüft',freigegeben:'Änderung erkannt',pruefung_erforderlich:'Freigabe erforderlich',vorschau_erstellt:'Vorschau erstellt',veroeffentlicht:'Veröffentlicht',fehler:'Fehler'};
 const actionLabels={bericht:'Bericht',vorschau:'Vorschau',rendern:'Rendern',upload_wix:'Upload Wix'};
+const storageKey='fsg-control-center-imports-v1';
 let products=[];
+let importedAt='';
 const $=id=>document.getElementById(id);
+const identity=p=>`${p.productGroup}:${p.productKey}`;
 const filters={search:$('search'),group:$('groupFilter'),status:$('statusFilter'),changed:$('changedOnly')};
 
-async function loadInitial(){products=await fetch('data/products.json').then(r=>r.json());hydrate();render();}
+async function loadInitial(){
+  try {
+    const saved=JSON.parse(localStorage.getItem(storageKey)||'null');
+    if(saved&&Array.isArray(saved.products)&&saved.products.length){products=saved.products;importedAt=saved.importedAt||'';}
+  } catch { /* Private browsing may block local storage. */ }
+  if(!products.length)products=await fetch('data/products.json').then(r=>r.json());
+  hydrate();render();
+}
 function hydrate(){products=products.map(p=>({...p,selected:Boolean(p.selected),errors:Array.isArray(p.errors)?p.errors:[]}));fillSelect(filters.group,[...new Set(products.map(p=>p.productGroup))]);fillSelect(filters.status,[...new Set(products.map(p=>p.status))],v=>labels[v]||v);}
 function fillSelect(select,values,label=x=>x){const value=select.value;select.innerHTML='<option value="">Alle</option>'+values.sort().map(v=>`<option value="${esc(v)}">${esc(label(v))}</option>`).join('');select.value=value;}
 function visible(){const q=filters.search.value.trim().toLowerCase();return products.filter(p=>(!q||`${p.title} ${p.productKey}`.toLowerCase().includes(q))&&(!filters.group.value||p.productGroup===filters.group.value)&&(!filters.status.value||p.status===filters.status.value)&&(!filters.changed.checked||p.changed));}
 function selected(){return products.filter(p=>p.selected);}
 function render(){const rows=visible();$('productRows').innerHTML=rows.map(row).join('');$('emptyState').hidden=rows.length>0;document.querySelectorAll('[data-select]').forEach(el=>el.addEventListener('change',e=>toggle(e.target.dataset.select,e.target.checked)));document.querySelectorAll('[data-detail]').forEach(el=>el.addEventListener('click',()=>showDetail(el.dataset.detail)));updateSummary(rows);}
-function row(p){const check=p.errors.length?`<span class="error">${esc(p.errors.join(', '))}</span>`:'<span class="ok">Vollständig</span>';return `<tr><td><input type="checkbox" data-select="${esc(p.productKey)}" ${p.selected?'checked':''} ${p.errors.length?'disabled':''}></td><td><div class="productTitle">${esc(p.title)}</div><div class="productKey">${esc(p.productKey)}</div></td><td>${esc(p.productGroup)}</td><td><span class="badge status-${esc(p.status)}">${esc(labels[p.status]||p.status)}</span></td><td>${p.changed?'<span class="changed">Geändert</span>':'–'}</td><td>${check}</td><td>${esc(p.templateVersion||'–')}</td><td><button data-detail="${esc(p.productKey)}">Details</button></td></tr>`;}
-function updateSummary(rows){const selection=selected();$('selectionCount').textContent=selection.length;document.querySelectorAll('.processAction').forEach(button=>button.disabled=selection.length===0||selection.some(p=>p.errors.length)||selection.length>20);$('selectAll').checked=rows.length>0&&rows.filter(p=>!p.errors.length).every(p=>p.selected);const count=s=>products.filter(p=>p.status===s).length;$('stats').innerHTML=stat(products.length,'Produkte')+stat(products.filter(p=>p.changed).length,'Geändert')+stat(count('fehler'),'Fehler')+stat(selection.length,'Ausgewählt');}
+function row(p){const check=p.errors.length?`<span class="error">${esc(p.errors.join(', '))}</span>`:'<span class="ok">Vollständig</span>';return `<tr><td><input type="checkbox" data-select="${esc(identity(p))}" ${p.selected?'checked':''} ${p.errors.length?'disabled':''}></td><td><div class="productTitle">${esc(p.title)}</div><div class="productKey">${esc(p.productKey)}</div></td><td>${esc(p.productGroup)}</td><td><span class="badge status-${esc(p.status)}">${esc(labels[p.status]||p.status)}</span></td><td>${p.changed?'<span class="changed">Geändert</span>':'–'}</td><td>${check}</td><td>${esc(p.templateVersion||'–')}</td><td><button data-detail="${esc(identity(p))}">Details</button></td></tr>`;}
+function updateSummary(rows){
+  const selection=selected();
+  const mixedGroups=new Set(selection.map(p=>p.productGroup)).size>1;
+  const unknownGroup=selection.some(p=>p.productGroup==='unbekannt');
+  $('selectionCount').textContent=selection.length;
+  $('selectionHint').textContent=mixedGroups?'Bitte nur Produkte einer Gruppe auswählen.':unknownGroup?'Produktgruppe im Bericht nicht erkennbar.':'';
+  document.querySelectorAll('.processAction').forEach(button=>button.disabled=selection.length===0||selection.some(p=>p.errors.length)||selection.length>20||mixedGroups||unknownGroup);
+  $('selectAll').checked=rows.length>0&&rows.filter(p=>!p.errors.length).every(p=>p.selected);
+  const count=s=>products.filter(p=>p.status===s).length;
+  $('stats').innerHTML=stat(products.length,'Produkte')+stat(products.filter(p=>p.changed).length,'Geändert')+stat(count('fehler'),'Fehler')+stat(selection.length,'Ausgewählt');
+  $('sourceInfo').textContent=importedAt
+    ?`Lokal gespeicherte Berichte · zuletzt hinzugefügt: ${new Date(importedAt).toLocaleString('de-DE')}. Kein automatischer Wix-Abgleich; neuere Berichte hier erneut laden.`
+    :'Beispielstand aus dem Repository (nur Neigungssensoren). Kein automatischer Wix-Abgleich. Lade aktuelle dry-run.json oder publish.json aus einem GitHub-Actions-Lauf; die erste Datei ersetzt diesen Beispielstand.';
+  $('resetReports').hidden=!importedAt;
+}
 function stat(n,t){return `<div class="stat"><strong>${n}</strong><span>${t}</span></div>`;}
-function toggle(key,on){const p=products.find(x=>x.productKey===key);if(p&&!p.errors.length)p.selected=on;render();}
-function showDetail(key){const p=products.find(x=>x.productKey===key);$('detailContent').innerHTML=`<h2>${esc(p.title)}</h2><dl class="detailGrid"><dt>Product Key</dt><dd>${esc(p.productKey)}</dd><dt>Produktgruppe</dt><dd>${esc(p.productGroup)}</dd><dt>Status</dt><dd>${esc(labels[p.status]||p.status)}</dd><dt>Vorlage</dt><dd>${esc(p.templateVersion||'–')}</dd><dt>Source Hash</dt><dd>${esc(p.sourceHash||'–')}</dd><dt>Prüffehler</dt><dd>${p.errors.length?esc(p.errors.join(', ')):'Keine'}</dd><dt>PDF-Vorschau</dt><dd>${p.pdf?esc(p.pdf.split('/').pop()):'Nicht vorhanden'}</dd></dl>`;$('detailDialog').showModal();}
-function prepareAction(action){const selection=selected();if(!selection.length||selection.length>20||selection.some(p=>p.errors.length))return;$('planTitle').textContent=`${actionLabels[action]||action} für ${selection.length} Produkte`;$('productKeys').value=selection.map(p=>p.productKey).join(',');$('planDialog').dataset.action=action;$('planDialog').showModal();}
+function toggle(key,on){const p=products.find(x=>identity(x)===key);if(p&&!p.errors.length)p.selected=on;render();}
+function showDetail(key){const p=products.find(x=>identity(x)===key);$('detailContent').innerHTML=`<h2>${esc(p.title)}</h2><dl class="detailGrid"><dt>Product Key</dt><dd>${esc(p.productKey)}</dd><dt>Produktgruppe</dt><dd>${esc(p.productGroup)}</dd><dt>Status</dt><dd>${esc(labels[p.status]||p.status)}</dd><dt>Vorlage</dt><dd>${esc(p.templateVersion||'–')}</dd><dt>Source Hash</dt><dd>${esc(p.sourceHash||'–')}</dd><dt>Prüffehler</dt><dd>${p.errors.length?esc(p.errors.join(', ')):'Keine'}</dd><dt>PDF-Vorschau</dt><dd>${p.pdf?esc(p.pdf.split('/').pop()):'Nicht vorhanden'}</dd></dl>`;$('detailDialog').showModal();}
+function prepareAction(action){const selection=selected();if(!selection.length||selection.length>20||selection.some(p=>p.errors.length)||new Set(selection.map(p=>p.productGroup)).size!==1||selection[0].productGroup==='unbekannt')return;$('planTitle').textContent=`${actionLabels[action]||action} für ${selection.length} Produkte (${selection[0].productGroup})`;$('productKeys').value=selection.map(p=>p.productKey).join(',');$('planDialog').dataset.action=action;$('planDialog').showModal();}
 async function copyKeys(){await navigator.clipboard.writeText($('productKeys').value);$('copyKeys').textContent='Kopiert';setTimeout(()=>$('copyKeys').textContent='Product Keys kopieren',1200);}
-function importReport(file){const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!Array.isArray(data))throw new Error('Report muss eine Liste sein');products=data.map(x=>({productKey:x.productKey,title:x.title,productGroup:x.productGroup||inferGroup(x),status:x.errors?.length?'fehler':x.pdf?'vorschau_erstellt':x.changed?'freigegeben':'geprueft',selected:false,changed:Boolean(x.changed),errors:x.errors||[],pdf:x.pdf||null,sourceHash:x.sourceHash||null,templateVersion:x.templateVersion||null}));hydrate();render();}catch(e){alert(`Report konnte nicht geladen werden: ${e.message}`)}};reader.readAsText(file);}
-function inferGroup(item){const template=String(item.templateVersion||'').toLowerCase();if(template.includes('cable'))return'seilzugsensoren';if(template.includes('inclination'))return'neigungssensoren';if(template.includes('foot'))return'fusspedale';if(template.includes('potentiometer'))return'potentiometer';return'unbekannt';}
+async function importReports(files){
+  try {
+    let merged=importedAt?products:[];
+    for(const file of files){
+      const data=JSON.parse(await file.text());
+      merged=mergeProducts(merged,normalizeReport(data));
+    }
+    if(!merged.length)throw new Error('Die Berichte enthalten keine Produkte.');
+    const timestamp=new Date().toISOString();
+    localStorage.setItem(storageKey,JSON.stringify({products:merged,importedAt:timestamp}));
+    products=merged;importedAt=timestamp;hydrate();render();
+  }catch(e){alert(`Berichte konnten nicht hinzugefügt werden: ${e.message}`)}
+}
 function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 Object.values(filters).forEach(el=>el.addEventListener(el.type==='checkbox'?'change':'input',render));
 $('selectVisible').onclick=()=>{visible().filter(p=>!p.errors.length).slice(0,20).forEach(p=>p.selected=true);render();};
@@ -28,5 +65,6 @@ document.querySelectorAll('.processAction').forEach(button=>button.onclick=()=>p
 $('copyKeys').onclick=copyKeys;
 $('closeDialog').onclick=()=>$('detailDialog').close();
 $('closePlan').onclick=()=>$('planDialog').close();
-$('reportFile').onchange=e=>e.target.files[0]&&importReport(e.target.files[0]);
+$('reportFile').onchange=e=>{if(e.target.files.length)importReports([...e.target.files]);e.target.value='';};
+$('resetReports').onclick=async()=>{if(!confirm('Lokal gespeicherte Berichte löschen und den Beispielstand anzeigen?'))return;localStorage.removeItem(storageKey);importedAt='';products=await fetch('data/products.json').then(r=>r.json());hydrate();render();};
 loadInitial();
