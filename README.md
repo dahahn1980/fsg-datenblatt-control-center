@@ -37,8 +37,9 @@ Neigungssensoren). Ein neuer GitHub-Actions-Lauf aktualisiert diese Datei nicht.
 
 ## Bedienablauf
 
-1. Im Repository `fsg-datenblatt-system` unter **Actions → FSG Datenblatt-Auswahl**
-   den gewünschten Prüf- oder Vorschau-Lauf starten.
+1. Im Repository `fsg-datenblatt-system` unter **Actions → FSG Datenblatt-Zentrale**
+   die gewünschte Produktgruppe, den Umfang `alle` und die Aktion `pruefen`
+   starten. Dazu ist kein Product Key erforderlich.
 2. Im Lauf unter **Artifacts** das Ergebnis herunterladen und daraus
    `reports/dry-run.json` (bzw. nach einer Veröffentlichung `reports/publish.json`)
    entpacken.
@@ -52,7 +53,8 @@ Neigungssensoren). Ein neuer GitHub-Actions-Lauf aktualisiert diese Datei nicht.
 5. Nach Produktgruppe, Status, Änderung oder Produktname filtern und bis zu 20
    Produkte **einer** Produktgruppe per Checkbox auswählen. Fehlerhafte
    Produkte können nicht ausgewählt werden.
-6. Aktion auswählen, **Product Keys kopieren**, verlinkten GitHub-Workflow öffnen,
+6. Aktion auswählen, **Product Keys kopieren**, den dann verlinkten Workflow
+   **FSG Datenblatt-Auswahl** öffnen,
    gleiche Aktion und Produktgruppe einstellen und die Keys in `product_keys`
    einfügen. Die Kontrollzentrale startet keinen Wix-Upload selbst.
 
